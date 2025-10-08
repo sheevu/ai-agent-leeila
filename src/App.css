@@ -112,6 +112,13 @@
   border-bottom-right-radius: 8px;
 }
 
+.message[data-variant='widget'] .message-bubble {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
 .message-text {
   margin: 0;
   white-space: pre-wrap;

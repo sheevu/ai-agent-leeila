@@ -1,7 +1,10 @@
+import type { SpeechRecognitionLike } from './types/speech'
+
 export {}
 
 declare global {
   interface Window {
-    webkitSpeechRecognition?: new () => any
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike
+    SpeechRecognition?: new () => SpeechRecognitionLike
   }
 }

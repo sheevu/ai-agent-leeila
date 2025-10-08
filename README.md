@@ -7,7 +7,8 @@ The experience runs fully on the front-end (React + Vite) with deterministic flo
 ## ✨ What's inside
 
 - Conversational UI with a vibrant Sudarshan-branded palette and the Leeila lotus emblem (`src/assets/leeila-logo.svg`).
-- Multilingual voice agent: tap the mic to speak (Hindi or English), toggle 🔊 to hear Leeila reply aloud.
+- Multilingual voice agent: tap the mic (🎙️) to speak and toggle the speaker (🔊) to hear Leeila reply aloud.
+- “Sudarshan Offers & Lead Capture” widget surfaces bundles, quick CTA, and an inline quote form.
 - Package catalogue with quick actions for seven pre-defined growth packs.
 - Automated sales capture (Package → Name → Phone → Business Type → City) with confirmation before submission.
 - Onboarding agent that collects business profile, location, registrations, and revenue band.
@@ -17,7 +18,7 @@ The experience runs fully on the front-end (React + Vite) with deterministic flo
 
 ### 1. Sales & query assistant
 1. Greets the visitor and lists all packaged offerings.
-2. Starts “Lead capture” on demand with smart quick replies.
+2. Starts "Lead capture" on demand with smart quick replies.
 3. Collects Package → Name → Phone → Business Type → City.
 4. Shows a structured summary with confirm / edit / reset options.
 5. Sends payload to `VITE_LEAD_WEBHOOK_URL` and re-surfaces the main menu.
@@ -33,9 +34,9 @@ Both flows can be restarted anytime (`reset`, `restart`) and the assistant can s
 ## 🎙️ Voice agent
 
 - **Mic button (🎙️)**: Start/stop speech recognition. Leeila auto-detects Hindi (hi-IN) vs English (en-IN).
-- **Speaker button (🔊)**: Toggle spoken assistant responses. Leeila narrates messages in the visitor’s detected language.
+- **Speaker button (🔊)**: Toggle spoken assistant responses. Leeila narrates messages in the visitor's detected language.
 - Live transcript pill echoes what the browser hears before the message is posted.
-- Built on the browser’s Web Speech API; no external keys required. Users must grant microphone permission.
+- Built on the browser's Web Speech API; no external keys required. Users must grant microphone permission.
 
 ## 🚀 Getting started locally
 
@@ -61,7 +62,7 @@ The dev server boots at <http://localhost:5173>. Hot Module Replacement (HMR) is
    ```bash
    VITE_LEAD_WEBHOOK_URL=https://hook.your-automation-platform.com/lead
    ```
-2. In `n8n`/`Make`/Zapier create a “Catch Hook” trigger. The assistant will POST a JSON body shaped like:
+2. In `n8n`/`Make`/Zapier create a "Catch Hook" trigger. The assistant will POST a JSON body shaped like:
    ```json
    {
      "source": "Leeila Sales Assistant",
@@ -90,7 +91,7 @@ If `VITE_LEAD_WEBHOOK_URL` is not set or responds with a non-`2xx` status, Leeil
 The project is static and can be hosted on any modern platform (Vercel, Netlify, Cloudflare Pages, GitHub Pages, etc.).
 
 1. Build the app: `npm run build` (outputs to `dist/`).
-2. Deploy the `dist` folder using your platform’s CLI or drag-and-drop uploader.
+2. Deploy the `dist` folder using your platform's CLI or drag-and-drop uploader.
 3. Remember to inject `VITE_LEAD_WEBHOOK_URL` as an environment variable on the hosting provider so the live build can reach your automation workflow.
 
 For containerised environments, serve the `dist` directory with any static server (e.g., `npm install -g serve` then `serve dist`). No server-side runtime is required.
@@ -102,6 +103,7 @@ For containerised environments, serve the `dist` directory with any static serve
 - Add fields: extend the `SalesLead` / `OnboardingData` interfaces and update the corresponding steps before the summary card.
 - Branding: adjust colours, gradients, and typography in `src/App.css` and `src/index.css`.
 - Voice UX: adapt the heuristics in `src/App.tsx` (locale detection, speech content) to fit your audience.
+- Widget UX: tune `widgetStaticData` in `src/App.tsx` or extend `SudarshanWidget` for custom automation destinations.
 
 ## ✅ Status
 

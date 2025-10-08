@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+﻿import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
 import LogoAsset from './assets/leeila-logo.svg'
+import SudarshanWidget from './components/SudarshanWidget'
+import type {
+  WidgetIntegration,
+  WidgetPackage,
+} from './components/SudarshanWidget'
+import './components/SudarshanWidget.css'
+import type {
+  SpeechRecognitionEventLike,
+  SpeechRecognitionLike,
+} from './types/speech'
 
 type ConversationFlow = 'none' | 'sales' | 'onboarding'
 type MessageSender = 'assistant' | 'user'
@@ -14,7 +24,7 @@ interface QuickReply {
   skipFlowHandling?: boolean
 }
 
-type MessageVariant = 'packages' | 'cta' | 'summary'
+type MessageVariant = 'packages' | 'cta' | 'summary' | 'widget'
 
 interface Message {
   id: string
@@ -40,6 +50,17 @@ interface SalesLead {
   phone?: string
   businessType?: string
   city?: string
+}
+
+interface WidgetMessageData {
+  title: string
+  greet1: string
+  greet2: string
+  ctaRegister: string
+  packages: WidgetPackage[]
+  packageOptions: Array<{ label: string; value: string }>
+  selectedPackage?: string
+  integration?: WidgetIntegration
 }
 
 type SalesStep =
@@ -135,6 +156,47 @@ const packages: PackageOffer[] = [
   },
 ]
 
+const stripPrefixIcon = (value: string) =>
+  value.replace(/^[^\w\u0900-\u097F]+/, '').trim()
+
+const toWidgetPackage = (offer: PackageOffer): WidgetPackage => ({
+  id: offer.id,
+  title: stripPrefixIcon(offer.label),
+  price: offer.price,
+  note: offer.description,
+})
+
+const toWidgetPackageOption = (offer: PackageOffer) => ({
+  value: offer.id,
+  label: `${stripPrefixIcon(offer.label)} • ${offer.price}`,
+})
+
+const widgetIntegration: WidgetIntegration = {
+  via: 'n8n',
+  service: 'google_sheets.append_row',
+  sheetId: 'LEADS_SHEET_ID',
+  worksheet: 'Sudarshan Leads',
+  fields: [
+    'timestamp',
+    'lead.name',
+    'lead.phone',
+    'lead.businessType',
+    'lead.city',
+    'lead.package',
+    'source',
+  ],
+}
+
+const widgetStaticData: Omit<WidgetMessageData, 'selectedPackage'> = {
+  title: 'Pricing & bundle offers',
+  greet1: 'Namaste! Ready to take your vyapar online?',
+  greet2: 'Pick a pack below or drop your details for a personalised callback.',
+  ctaRegister: 'Register shop for ₹89',
+  packages: packages.map(toWidgetPackage),
+  packageOptions: packages.map(toWidgetPackageOption),
+  integration: widgetIntegration,
+}
+
 const registrationTracks = ['Udyam/MSME', 'GST', 'Sudarshan Portal']
 
 const businessTypeOptions = [
@@ -223,7 +285,7 @@ const App = () => {
   const [voiceTranscript, setVoiceTranscript] = useState('')
 
   const messageQueueRef = useRef<number[]>([])
-  const recognitionRef = useRef<any>(null)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const speechVoicesRef = useRef<SpeechSynthesisVoice[]>([])
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
   const previousMessageCountRef = useRef(0)
@@ -329,12 +391,24 @@ const App = () => {
         variant: 'packages',
         data: packages,
       },
-      {
-        content: 'Register Your Shop for ₹89, Go Digital, Get Udyam Free 🚀',
-        variant: 'cta',
-      },
     ])
   }, [scheduleAssistantMessages])
+
+  const sendWidgetCard = useCallback(
+    (selectedPackageId?: string) => {
+      scheduleAssistantMessages([
+        {
+          content: 'Ek nazar me aapke options:',
+          variant: 'widget',
+          data: {
+            ...widgetStaticData,
+            selectedPackage: selectedPackageId,
+          },
+        },
+      ])
+    },
+    [scheduleAssistantMessages],
+  )
 
   const buildFlowChooserPayload = useCallback(
     (): Omit<Message, 'id' | 'sender' | 'timestamp'> => ({
@@ -367,6 +441,22 @@ const App = () => {
     scheduleAssistantMessages([buildFlowChooserPayload()])
   }, [buildFlowChooserPayload, scheduleAssistantMessages])
 
+  const deriveSelectedPackageId = useCallback(() => {
+    if (!salesLead.packageInterest) {
+      return undefined
+    }
+    const interest = salesLead.packageInterest
+    const matched =
+      packages.find(
+        (offer) =>
+          normalise(offer.label) === normalise(interest) ||
+          normalise(stripPrefixIcon(offer.label)) === normalise(interest),
+      ) ??
+      packages.find((offer) => normalise(offer.id) === normalise(interest))
+
+    return matched?.id
+  }, [salesLead.packageInterest])
+
   const presentMenuForUser = useCallback(
     (profileOverride?: UserProfile) => {
       const profile = profileOverride ?? userProfile
@@ -375,11 +465,10 @@ const App = () => {
         ? `Shukriya${namePart}! Aapke contact (${profile.phone}) note kar liye hain. Ab main packages aur onboarding options share karti hoon.`
         : `Shukriya${namePart}! Ab main packages aur onboarding options share karti hoon.`
 
+      const selected = deriveSelectedPackageId()
       scheduleAssistantMessages(
         [
-          {
-            content: confirmationMessage,
-          },
+          { content: confirmationMessage },
           {
             content: 'Yeh hamare sabse popular digital growth packs hain:',
             variant: 'packages',
@@ -389,12 +478,25 @@ const App = () => {
             content: 'Register Your Shop for ₹89, Go Digital, Get Udyam Free 🚀',
             variant: 'cta',
           },
+          {
+            content: 'Ek nazar me aapke options:',
+            variant: 'widget',
+            data: {
+              ...widgetStaticData,
+              selectedPackage: selected,
+            },
+          },
           buildFlowChooserPayload(),
         ],
         700,
       )
     },
-    [buildFlowChooserPayload, scheduleAssistantMessages, userProfile],
+    [
+      buildFlowChooserPayload,
+      deriveSelectedPackageId,
+      scheduleAssistantMessages,
+      userProfile,
+    ],
   )
 
   const sendWelcome = useCallback(() => {
@@ -718,6 +820,77 @@ const App = () => {
       userProfile,
     ],
   )
+  const handleWidgetPackagePick = useCallback(
+    (packageId: string) => {
+      const selected = packages.find((offer) => offer.id === packageId)
+      const label = selected?.label ?? formatTitleCase(packageId.replace(/[-_]/g, ' '))
+      setSalesLead((prev) => ({
+        ...prev,
+        packageInterest: label,
+      }))
+      setActiveFlow('sales')
+      setSalesStep('askName')
+      addAssistantMessage({
+        content: selected
+          ? `${selected.label} select kiya. Ab aapka naam batayein?`
+          : 'Pack select ho gaya. Ab aapka naam batayein?',
+      })
+    },
+    [addAssistantMessage],
+  )
+
+  const handleWidgetLeadSubmit = useCallback(
+    (payload: Record<string, string>) => {
+      const chosenPackageId = payload['lead.package'] || deriveSelectedPackageId()
+      const digits = (payload['lead.phone'] ?? '').replace(/\D/g, '')
+      if (digits.length < 10) {
+        addAssistantMessage({
+          content:
+            'Contact number 10 digits ka hona chahiye. Kripya sirf numbers mein dobara bhejein.',
+        })
+        return
+      }
+      const selectedOffer = chosenPackageId
+        ? packages.find((offer) => offer.id === chosenPackageId)
+        : undefined
+      const packageInterest =
+        selectedOffer?.label ??
+        salesLead.packageInterest ??
+        (payload['lead.package'] ? formatTitleCase(payload['lead.package']) : packages[0].label)
+
+      const lead: SalesLead = {
+        packageInterest,
+        name: formatTitleCase(payload['lead.name'] ?? ''),
+        phone: digits,
+        businessType: formatTitleCase(payload['lead.businessType'] ?? ''),
+        city: formatTitleCase(payload['lead.city'] ?? ''),
+      }
+
+      setSalesLead(lead)
+      setActiveFlow('sales')
+      setSalesStep('review')
+      addAssistantMessage({
+        content: 'Shukriya! Form ke details maine capture kar liye hain.',
+      })
+      showSalesSummary(lead)
+    },
+    [
+      addAssistantMessage,
+      deriveSelectedPackageId,
+      salesLead.packageInterest,
+      showSalesSummary,
+    ],
+  )
+
+  const handleWidgetLeadReset = useCallback(() => {
+    setSalesLead((prev) => ({
+      packageInterest: prev.packageInterest,
+    }))
+    setSalesStep('askName')
+    addAssistantMessage({
+      content: 'Form clear kar diya hai. Jab ready ho, nayi details bhej dijiye.',
+    })
+  }, [addAssistantMessage])
 
   const handleSalesInput = useCallback(
     (rawText: string) => {
@@ -1091,7 +1264,9 @@ const App = () => {
       }
 
       if (lowered.includes('pack') || lowered.includes('price')) {
+        const selected = deriveSelectedPackageId()
         sendPackagesOverview()
+        sendWidgetCard(selected)
         sendFlowChooser()
         return
       }
@@ -1124,7 +1299,9 @@ const App = () => {
       resetAssistant,
       sendFlowChooser,
       sendPackagesOverview,
+      sendWidgetCard,
       isListening,
+      deriveSelectedPackageId,
       startOnboardingFlow,
       startSalesLeadCapture,
       handleIntroInput,
@@ -1174,13 +1351,15 @@ const App = () => {
       return
     }
 
-    const SpeechRecognitionConstructor =
+    const SpeechRecognitionConstructor:
+      | (new () => SpeechRecognitionLike)
+      | null =
       (window as typeof window & {
-        SpeechRecognition?: new () => any
-        webkitSpeechRecognition?: new () => any
+        SpeechRecognition?: new () => SpeechRecognitionLike
+        webkitSpeechRecognition?: new () => SpeechRecognitionLike
       }).SpeechRecognition ??
       (window as typeof window & {
-        webkitSpeechRecognition?: new () => any
+        webkitSpeechRecognition?: new () => SpeechRecognitionLike
       }).webkitSpeechRecognition ??
       null
 
@@ -1212,7 +1391,7 @@ const App = () => {
         setIsListening(false)
       }
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionEventLike) => {
         const latest = event.results[event.results.length - 1]
         if (!latest) {
           return
@@ -1447,6 +1626,23 @@ const App = () => {
       )
     }
 
+    if (message.variant === 'widget' && message.data) {
+      const widgetData = message.data as WidgetMessageData
+      const selected = deriveSelectedPackageId()
+      return (
+        <>
+          {message.content && <p className="message-text">{message.content}</p>}
+          <SudarshanWidget
+            {...widgetData}
+            selectedPackage={selected ?? widgetData.selectedPackage}
+            onPackagePick={handleWidgetPackagePick}
+            onLeadSubmit={handleWidgetLeadSubmit}
+            onLeadReset={handleWidgetLeadReset}
+          />
+        </>
+      )
+    }
+
     return (
       <p className="message-text">
         {message.content.split('\n').map((line, idx) => (
@@ -1565,4 +1761,7 @@ const App = () => {
 }
 
 export default App
+
+
+
 
