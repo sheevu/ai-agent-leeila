@@ -98,7 +98,11 @@ const SudarshanWidget = ({
         <form className="sudarshan-widget__form" onSubmit={handleSubmit} onReset={handleReset}>
           <label className="sudarshan-widget__field">
             Package (optional)
-            <select name="lead.package" defaultValue={selectedPackage ?? ''}>
+            <select
+              name="lead.package"
+              value={selectedPackage ?? ''}
+              onChange={(event) => onPackagePick(event.target.value)}
+            >
               <option value="">Choose a package</option>
               {packageOptions.map((option) => (
                 <option value={option.value} key={option.value}>
