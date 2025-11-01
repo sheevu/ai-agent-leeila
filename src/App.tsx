@@ -13,7 +13,7 @@ import type {
   SpeechRecognitionLike,
 } from './types/speech'
 
-type ConversationFlow = 'none' | 'sales' | 'onboarding'
+type ConversationFlow = 'none' | 'sales' | 'onboarding' | 'support'
 type MessageSender = 'assistant' | 'user'
 
 interface QuickReply {
@@ -104,7 +104,22 @@ interface UserProfile {
   phone?: string
 }
 
-type IntroStep = 'askName' | 'askPhone' | 'completed'
+type IntroStep = 'askNeed' | 'askName' | 'askPhone' | 'completed'
+
+interface SupportTicket {
+  topic?: string
+  issueDescription?: string
+  urgency?: string
+  preferredChannel?: string
+}
+
+type SupportStep =
+  | 'idle'
+  | 'askTopic'
+  | 'askIssue'
+  | 'askUrgency'
+  | 'askChannel'
+  | 'review'
 
 type VoiceLocale = 'hi-IN' | 'en-IN'
 
@@ -217,6 +232,73 @@ const revenueBandOptions = [
   '₹1Cr+',
 ]
 
+const supportTopics = [
+  'Billing & Payments',
+  'Technical issue',
+  'Training & onboarding',
+  'Project status update',
+  'Talk to an expert',
+  'Other',
+]
+
+const supportUrgencyOptions = ['Low', 'Normal', 'High']
+
+const supportChannelOptions = ['Call', 'WhatsApp', 'Email']
+
+const supportFaqs: Array<{ keywords: string[]; answer: string; followUp?: string }> = [
+  {
+    keywords: ['price', 'pricing', 'cost', 'pack', 'package'],
+    answer:
+      'Hamara pricing packs me structured hai — Tech Swaraj ₹89 one-time se start hota hai aur premium retainers ₹999/mo se. Main aapko detailed packs abhi dikha sakti hoon.',
+    followUp: 'Kya main packages ka snapshot bheju ya sales specialist se connect karu?',
+  },
+  {
+    keywords: ['payment', 'invoice', 'billing'],
+    answer:
+      'Payments hum Razorpay aur bank transfer dono accept karte hain. Invoice har payment ke baad auto-generate hota hai aur aapke registered email par share hota hai.',
+    followUp: 'Agar kisi invoice me correction chahiye to bataiye, main ticket raise kar dungi.',
+  },
+  {
+    keywords: ['support', 'issue', 'problem', 'error', 'bug'],
+    answer:
+      'Main technical issues log karne me madad karungi. Bas mujhe feature ka naam aur issue ka short summary bata dijiye.',
+    followUp: 'Kya aap support ticket raise karna chahenge?',
+  },
+  {
+    keywords: ['training', 'demo', 'guide', 'documentation'],
+    answer:
+      'Humne onboarding ke liye Hindi/English video walkthroughs aur quickstart playbooks banaye hain. Zarurat pade to live training slot bhi schedule kar sakte hain.',
+    followUp: 'Kya main aapko training scheduler link bheju ya kisi specialist se connect karu?',
+  },
+  {
+    keywords: ['status', 'progress', 'update', 'timeline'],
+    answer:
+      'Project status ke liye hum Monday-Wednesday-Friday updates bhejte hain. Agar aapko realtime snapshot chahiye to main account manager se quick callback schedule kara sakti hoon.',
+    followUp: 'Kya aap callback prefer karenge ya email summary?',
+  },
+]
+
+const matchSupportFaq = (text: string) => {
+  const lowered = text.toLowerCase()
+  return supportFaqs.find((faq) =>
+    faq.keywords.some((keyword) => lowered.includes(keyword.toLowerCase())),
+  )
+}
+
+const getFlowAcknowledgement = (flow: ConversationFlow, profile?: UserProfile) => {
+  const namePart = profile?.name ? ` ${profile.name}` : ''
+  switch (flow) {
+    case 'sales':
+      return `Samajh gayi${namePart}! Sales consultation ke liye taiyar hoon.`
+    case 'onboarding':
+      return `Great${namePart}! Onboarding/registration steps me main aapko guide karungi.`
+    case 'support':
+      return `Bilkul${namePart}! Customer care desk ready hai, bas kuch details chahiye.`
+    default:
+      return `Great${namePart}!`
+  }
+}
+
 const makeId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
@@ -273,9 +355,12 @@ const App = () => {
   const [salesStep, setSalesStep] = useState<SalesStep>('idle')
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({})
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>('idle')
+  const [supportTicket, setSupportTicket] = useState<SupportTicket>({})
+  const [supportStep, setSupportStep] = useState<SupportStep>('idle')
   const [isSendingLead, setIsSendingLead] = useState(false)
-  const [introStep, setIntroStep] = useState<IntroStep>('askName')
+  const [introStep, setIntroStep] = useState<IntroStep>('askNeed')
   const [userProfile, setUserProfile] = useState<UserProfile>({})
+  const [pendingFlow, setPendingFlow] = useState<ConversationFlow | null>(null)
   const [voiceLocale, setVoiceLocale] = useState<VoiceLocale>('en-IN')
   const [lastUserLocale, setLastUserLocale] = useState<VoiceLocale>('en-IN')
   const [isVoiceSupported, setIsVoiceSupported] = useState(false)
@@ -384,6 +469,38 @@ const App = () => {
     })
   }, [addAssistantMessage])
 
+  const startSupportFlow = useCallback(() => {
+    setActiveFlow('support')
+    setSupportTicket({})
+    setSupportStep('askTopic')
+    addAssistantMessage({
+      content: 'Customer care desk par swagat hai! Kis type ka concern resolve karna chahenge?',
+      quickReplies: supportTopics.map((topic) => ({
+        label: topic,
+        payload: topic,
+      })),
+    })
+  }, [addAssistantMessage])
+
+  const startChosenFlow = useCallback(
+    (flow: ConversationFlow) => {
+      switch (flow) {
+        case 'sales':
+          startSalesLeadCapture()
+          break
+        case 'onboarding':
+          startOnboardingFlow()
+          break
+        case 'support':
+          startSupportFlow()
+          break
+        default:
+          break
+      }
+    },
+    [startOnboardingFlow, startSalesLeadCapture, startSupportFlow],
+  )
+
   const sendPackagesOverview = useCallback(() => {
     scheduleAssistantMessages([
       {
@@ -422,6 +539,12 @@ const App = () => {
           type: 'primary',
         },
         {
+          label: 'Customer support & care',
+          payload: 'Customer support',
+          skipFlowHandling: true,
+          onSelect: startSupportFlow,
+        },
+        {
           label: 'Onboarding / Registration madad',
           payload: 'Onboarding madad chahiye',
           skipFlowHandling: true,
@@ -434,12 +557,17 @@ const App = () => {
         },
       ],
     }),
-    [startOnboardingFlow, startSalesLeadCapture],
+    [startOnboardingFlow, startSalesLeadCapture, startSupportFlow],
   )
 
-  const sendFlowChooser = useCallback(() => {
-    scheduleAssistantMessages([buildFlowChooserPayload()])
-  }, [buildFlowChooserPayload, scheduleAssistantMessages])
+  const disableVoiceResponses = useCallback(() => {
+    setAutoVoiceResponses((prev) => {
+      if (prev && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+      return false
+    })
+  }, [])
 
   const deriveSelectedPackageId = useCallback(() => {
     if (!salesLead.packageInterest) {
@@ -457,15 +585,105 @@ const App = () => {
     return matched?.id
   }, [salesLead.packageInterest])
 
+  const runAudioDemo = useCallback(() => {
+    if (!isSpeechSupported) {
+      addAssistantMessage({
+        content:
+          'Audio demo sirf un browsers par available hai jahan speech synthesis support hoti hai (Chrome/Edge).',
+      })
+      return
+    }
+
+    setAutoVoiceResponses(true)
+
+    const selectedPackage = deriveSelectedPackageId()
+    const flowChooser = buildFlowChooserPayload()
+
+    scheduleAssistantMessages(
+      [
+        {
+          content:
+            'Audio demo shuru kar rahi hoon. Main ab apne jawab bolkar bhi sunaoongi. Speaker icon se kabhi bhi mute kar sakte hain.',
+        },
+        {
+          content: 'Yeh hamare sabse popular digital growth packs hain:',
+          variant: 'packages',
+          data: packages,
+        },
+        {
+          content: 'Register Your Shop for ₹89, Go Digital, Get Udyam Free 🚀',
+          variant: 'cta',
+        },
+        {
+          content: 'Ek nazar me aapke options:',
+          variant: 'widget',
+          data: {
+            ...widgetStaticData,
+            selectedPackage,
+          },
+        },
+        {
+          content: 'Demo complete! Agla step choose karein:',
+          quickReplies: [
+            {
+              label: 'Mute demo',
+              onSelect: disableVoiceResponses,
+            },
+            ...(flowChooser.quickReplies ?? []),
+          ],
+        },
+      ],
+      750,
+    )
+  }, [
+    addAssistantMessage,
+    buildFlowChooserPayload,
+    deriveSelectedPackageId,
+    disableVoiceResponses,
+    isSpeechSupported,
+    scheduleAssistantMessages,
+  ])
+
+  const sendFlowChooser = useCallback(() => {
+    const payload = buildFlowChooserPayload()
+    const quickReplies = [
+      ...(payload.quickReplies ?? []),
+      {
+        label: 'Audio demo chalao',
+        payload: 'Audio demo chalao',
+        skipFlowHandling: true,
+        onSelect: runAudioDemo,
+      },
+    ]
+
+    scheduleAssistantMessages([
+      {
+        ...payload,
+        quickReplies,
+      },
+    ])
+  }, [buildFlowChooserPayload, runAudioDemo, scheduleAssistantMessages])
+
   const presentMenuForUser = useCallback(
     (profileOverride?: UserProfile) => {
       const profile = profileOverride ?? userProfile
       const namePart = profile.name ? ` ${profile.name}` : ''
       const confirmationMessage = profile.phone
-        ? `Shukriya${namePart}! Aapke contact (${profile.phone}) note kar liye hain. Ab main packages aur onboarding options share karti hoon.`
-        : `Shukriya${namePart}! Ab main packages aur onboarding options share karti hoon.`
+        ? `Shukriya${namePart}! Aapke contact (${profile.phone}) note kar liye hain. Ab main packages, onboarding aur customer support options share karti hoon.`
+        : `Shukriya${namePart}! Ab main packages, onboarding aur customer support options share karti hoon.`
 
       const selected = deriveSelectedPackageId()
+      const flowChooserPayload = buildFlowChooserPayload()
+      const quickReplies = [
+        ...(flowChooserPayload.quickReplies ?? []),
+        {
+          label: 'Audio demo chalao',
+          payload: 'Audio demo chalao',
+          skipFlowHandling: true,
+          onSelect: runAudioDemo,
+        },
+      ]
+
       scheduleAssistantMessages(
         [
           { content: confirmationMessage },
@@ -486,7 +704,14 @@ const App = () => {
               selectedPackage: selected,
             },
           },
-          buildFlowChooserPayload(),
+          {
+            content:
+              'Customer care update: 24x7 ticket inbox, WhatsApp escalation lane aur human specialists ready hain. Kisi bhi issue par "Customer support" select karein.',
+          },
+          {
+            ...flowChooserPayload,
+            quickReplies,
+          },
         ],
         700,
       )
@@ -494,22 +719,35 @@ const App = () => {
     [
       buildFlowChooserPayload,
       deriveSelectedPackageId,
+      runAudioDemo,
       scheduleAssistantMessages,
       userProfile,
     ],
   )
 
   const sendWelcome = useCallback(() => {
-    setIntroStep('askName')
+    setIntroStep('askNeed')
     setUserProfile({})
+    setPendingFlow(null)
     scheduleAssistantMessages(
       [
         {
           content:
-            'Namaste 🙏 Sudarshan AI Labs me aapka swagat hai! Main Leeila AI hoon, aapki digital sahayak.',
+            'Namaste 🙏 Sudarshan AI Labs me aapka swagat hai! Main Leeila AI hoon — aapki Customer Care + Sales Head sahayak.',
         },
         {
-          content: 'Shuru karne se pehle, aapka naam batayein?',
+          content:
+            'Batayiye kis cheez me madad chahiye? Sales consultation, customer support ya onboarding?',
+          quickReplies: [
+            { label: 'Sales consultation', payload: 'Sales consultation' },
+            { label: 'Customer support', payload: 'Customer support' },
+            { label: 'Onboarding help', payload: 'Onboarding help' },
+            { label: 'Audio demo', payload: 'Audio demo chalao' },
+          ],
+        },
+        {
+          content:
+            'Voice demo dekhne ke liye "Audio demo chalao" type karein ya niche speaker icon se enable karein.',
         },
       ],
       700,
@@ -530,7 +768,10 @@ const App = () => {
     setSalesStep('idle')
     setOnboardingData({})
     setOnboardingStep('idle')
-    setIntroStep('askName')
+    setSupportTicket({})
+    setSupportStep('idle')
+    setPendingFlow(null)
+    setIntroStep('askNeed')
     setUserProfile({})
     setIsSendingLead(false)
     setVoiceTranscript('')
@@ -712,6 +953,58 @@ const App = () => {
     sendLeadToWebhook,
   ])
 
+  const submitSupportTicket = useCallback(async () => {
+    if (isSendingLead) {
+      return
+    }
+
+    if (
+      !supportTicket.topic ||
+      !supportTicket.issueDescription ||
+      !supportTicket.preferredChannel
+    ) {
+      addAssistantMessage({
+        content: 'Ticket bhejne se pehle topic, issue aur preferred contact channel batana zaruri hai.',
+      })
+      return
+    }
+
+    setIsSendingLead(true)
+    try {
+      await sendLeadToWebhook({
+        source: 'Leeila Customer Care',
+        flow: 'support',
+        capturedAt: new Date().toISOString(),
+        ...supportTicket,
+        customerName: userProfile.name,
+        customerPhone: userProfile.phone,
+      })
+      addAssistantMessage({
+        content:
+          'Ho gaya! Maine support squad ko alert kar diya hai. Aapke prefer kiye gaye channel par jaldi follow-up aayega.',
+      })
+      setSupportTicket({})
+      setSupportStep('idle')
+      setActiveFlow('none')
+      sendFlowChooser()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown webhook error'
+      addAssistantMessage({
+        content: `Ticket bhejte waqt dikkat aayi (${message}). Main human specialist ko notify karne ki koshish karungi.`,
+      })
+    } finally {
+      setIsSendingLead(false)
+    }
+  }, [
+    addAssistantMessage,
+    isSendingLead,
+    sendFlowChooser,
+    sendLeadToWebhook,
+    supportTicket,
+    userProfile.name,
+    userProfile.phone,
+  ])
+
   const showOnboardingSummary = useCallback(
     (data: OnboardingData) => {
       const summary = [
@@ -757,6 +1050,41 @@ const App = () => {
     [addAssistantMessage, resetAssistant, submitOnboardingLead],
   )
 
+  const showSupportSummary = useCallback(
+    (ticket: SupportTicket) => {
+      const summary = [
+        { label: 'Topic', value: ticket.topic ?? '—' },
+        { label: 'Description', value: ticket.issueDescription ?? '—' },
+        { label: 'Urgency', value: ticket.urgency ?? '—' },
+        { label: 'Preferred channel', value: ticket.preferredChannel ?? '—' },
+      ]
+
+      addAssistantMessage({
+        content: 'Support request ready hai. Kya main team ko forward kar du?',
+        variant: 'summary',
+        data: summary,
+        quickReplies: [
+          {
+            label: 'Confirm & create ticket',
+            payload: 'Support ticket submit karo',
+            skipFlowHandling: true,
+            onSelect: submitSupportTicket,
+            type: 'primary',
+          },
+          {
+            label: 'Details edit karni hain',
+            payload: 'Support edit karna hai',
+          },
+          {
+            label: 'Human se baat karni hai',
+            payload: 'Human support please',
+          },
+        ],
+      })
+    },
+    [addAssistantMessage, submitSupportTicket],
+  )
+
   const handleIntroInput = useCallback(
     (rawText: string) => {
       const text = rawText.trim()
@@ -766,6 +1094,98 @@ const App = () => {
 
       if (/reset|restart|naya/i.test(text)) {
         resetAssistant()
+        return
+      }
+
+      if (introStep === 'askNeed') {
+        const lowered = text.toLowerCase()
+
+        if (/(audio|voice)\s*demo/.test(lowered) || /demo/.test(lowered)) {
+          runAudioDemo()
+          addAssistantMessage({
+            content:
+              'Demo chalu kar diya hai. Ab batayein kis cheez me madad chahiye — sales, customer support ya onboarding?',
+            quickReplies: [
+              { label: 'Sales consultation', payload: 'Sales consultation' },
+              { label: 'Customer support', payload: 'Customer support' },
+              { label: 'Onboarding help', payload: 'Onboarding help' },
+            ],
+          })
+          return
+        }
+
+        let desiredFlow: ConversationFlow | null = null
+        if (
+          lowered.includes('support') ||
+          lowered.includes('issue') ||
+          lowered.includes('problem') ||
+          lowered.includes('care')
+        ) {
+          desiredFlow = 'support'
+        } else if (
+          lowered.includes('onboard') ||
+          lowered.includes('register') ||
+          lowered.includes('udyam') ||
+          lowered.includes('gst')
+        ) {
+          desiredFlow = 'onboarding'
+        } else if (
+          lowered.includes('sales') ||
+          lowered.includes('package') ||
+          lowered.includes('pricing') ||
+          lowered.includes('price') ||
+          lowered.includes('growth')
+        ) {
+          desiredFlow = 'sales'
+        }
+
+        if (!desiredFlow) {
+          addAssistantMessage({
+            content:
+              'Main sales consultation, onboarding aur customer support me madad karti hoon. Neeche se ek option choose karein.',
+            quickReplies: [
+              { label: 'Sales consultation', payload: 'Sales consultation' },
+              { label: 'Customer support', payload: 'Customer support' },
+              { label: 'Onboarding help', payload: 'Onboarding help' },
+              { label: 'Audio demo', payload: 'Audio demo chalao' },
+            ],
+          })
+          return
+        }
+
+        setPendingFlow(desiredFlow)
+        const acknowledgement = getFlowAcknowledgement(desiredFlow, userProfile)
+
+        if (!userProfile.name) {
+          setIntroStep('askName')
+          scheduleAssistantMessages(
+            [
+              { content: acknowledgement },
+              { content: 'Sabse pehle aapka naam batayein?' },
+            ],
+            600,
+          )
+          return
+        }
+
+        if (!userProfile.phone) {
+          setIntroStep('askPhone')
+          scheduleAssistantMessages(
+            [
+              { content: acknowledgement },
+              { content: 'Apna contact number (10 digit) share kijiye.' },
+            ],
+            600,
+          )
+          return
+        }
+
+        setIntroStep('completed')
+        setPendingFlow(null)
+        addAssistantMessage({
+          content: `${acknowledgement} Shukriya!`,
+        })
+        startChosenFlow(desiredFlow)
         return
       }
 
@@ -793,11 +1213,11 @@ const App = () => {
 
       if (introStep === 'askPhone') {
         const digits = text.replace(/\D/g, '')
-        if (digits.length < 10) {
+        if (digits.length !== 10) {
           scheduleAssistantMessages([
             {
               content:
-                'Contact number 10 digits ka hona chahiye. Kripya sirf numbers me dobara bhejein.',
+                'Contact number sirf 10 digits ka hona chahiye. Kripya sirf numbers me dobara bhejein.',
             },
           ])
           return
@@ -809,19 +1229,40 @@ const App = () => {
         }
         setUserProfile(updatedProfile)
         setIntroStep('completed')
-        presentMenuForUser(updatedProfile)
+        if (pendingFlow) {
+          const flowToLaunch = pendingFlow
+          setPendingFlow(null)
+          const acknowledgement = `${getFlowAcknowledgement(flowToLaunch, updatedProfile)} Shukriya! Contact (${digits}) note kar liya hai.`
+          addAssistantMessage({
+            content: acknowledgement,
+          })
+          startChosenFlow(flowToLaunch)
+        } else {
+          presentMenuForUser(updatedProfile)
+        }
       }
     },
     [
+      addAssistantMessage,
       introStep,
+      pendingFlow,
       presentMenuForUser,
       resetAssistant,
       scheduleAssistantMessages,
+      startChosenFlow,
+      runAudioDemo,
       userProfile,
     ],
   )
   const handleWidgetPackagePick = useCallback(
     (packageId: string) => {
+      if (!packageId) {
+        setSalesLead((prev) => ({
+          ...prev,
+          packageInterest: undefined,
+        }))
+        return
+      }
       const selected = packages.find((offer) => offer.id === packageId)
       const label = selected?.label ?? formatTitleCase(packageId.replace(/[-_]/g, ' '))
       setSalesLead((prev) => ({
@@ -843,10 +1284,10 @@ const App = () => {
     (payload: Record<string, string>) => {
       const chosenPackageId = payload['lead.package'] || deriveSelectedPackageId()
       const digits = (payload['lead.phone'] ?? '').replace(/\D/g, '')
-      if (digits.length < 10) {
+      if (digits.length !== 10) {
         addAssistantMessage({
           content:
-            'Contact number 10 digits ka hona chahiye. Kripya sirf numbers mein dobara bhejein.',
+            'Contact number sirf 10 digits ka hona chahiye. Kripya sirf numbers mein dobara bhejein.',
         })
         return
       }
@@ -951,10 +1392,10 @@ const App = () => {
         }
         case 'askPhone': {
           const digits = text.replace(/\D/g, '')
-          if (digits.length < 10) {
+          if (digits.length !== 10) {
             addAssistantMessage({
               content:
-                'Contact number 10 digits ka hona chahiye. Kripya dobara try karein.',
+                'Contact number sirf 10 digits ka hona chahiye. Kripya dobara try karein.',
             })
             return
           }
@@ -1083,9 +1524,9 @@ const App = () => {
         }
         case 'askContact': {
           const digits = text.replace(/\D/g, '')
-          if (digits.length < 10) {
+          if (digits.length !== 10) {
             addAssistantMessage({
-              content: 'Valid 10 digit mobile number share kijiye.',
+              content: 'Valid 10 digit mobile number share kijiye (sirf 10 digits).',
             })
             return
           }
@@ -1219,6 +1660,153 @@ const App = () => {
     ],
   )
 
+  const handleSupportInput = useCallback(
+    (rawText: string) => {
+      const text = rawText.trim()
+      if (!text) {
+        return
+      }
+
+      if (/reset|restart|naya/i.test(text)) {
+        resetAssistant()
+        return
+      }
+
+      switch (supportStep) {
+        case 'askTopic': {
+          const matched =
+            supportTopics.find(
+              (topic) =>
+                normalise(topic) === normalise(text) ||
+                normalise(topic).includes(normalise(text)),
+            ) ?? formatTitleCase(text)
+          const updated: SupportTicket = {
+            ...supportTicket,
+            topic: matched,
+          }
+          setSupportTicket(updated)
+          setSupportStep('askIssue')
+
+          const faq = matchSupportFaq(matched)
+          if (faq) {
+            scheduleAssistantMessages(
+              [
+                {
+                  content: faq.answer,
+                },
+                {
+                  content:
+                    faq.followUp ??
+                    'Please concern ka short description share kijiye taaki main ticket raise kar saku.',
+                },
+              ],
+              650,
+            )
+          } else {
+            addAssistantMessage({
+              content:
+                'Please concern ka short description share kijiye taaki main ticket raise kar saku.',
+            })
+          }
+          break
+        }
+        case 'askIssue': {
+          const updated: SupportTicket = {
+            ...supportTicket,
+            issueDescription: text,
+          }
+          setSupportTicket(updated)
+          setSupportStep('askUrgency')
+          addAssistantMessage({
+            content: 'Issue ki urgency batayein?',
+            quickReplies: supportUrgencyOptions.map((option) => ({
+              label: option,
+              payload: option,
+            })),
+          })
+          break
+        }
+        case 'askUrgency': {
+          const updated: SupportTicket = {
+            ...supportTicket,
+            urgency: formatTitleCase(text),
+          }
+          setSupportTicket(updated)
+          setSupportStep('askChannel')
+          addAssistantMessage({
+            content: 'Team aapse kaise connect kare?',
+            quickReplies: supportChannelOptions.map((option) => ({
+              label: option,
+              payload: option,
+            })),
+          })
+          break
+        }
+        case 'askChannel': {
+          const updated: SupportTicket = {
+            ...supportTicket,
+            preferredChannel: formatTitleCase(text),
+          }
+          setSupportTicket(updated)
+          setSupportStep('review')
+          showSupportSummary(updated)
+          break
+        }
+        case 'review': {
+          if (/sirf call/i.test(text)) {
+            addAssistantMessage({
+              content:
+                'Noted! Maine escalation mark kar di hai. Human representative aapko preferred channel par ping karega.',
+            })
+            setSupportStep('idle')
+            setActiveFlow('none')
+            sendFlowChooser()
+          } else if (/submit|confirm|done|haan ticket/i.test(text)) {
+            submitSupportTicket()
+          } else if (/edit|change|update/i.test(text)) {
+            setSupportStep('askIssue')
+            addAssistantMessage({
+              content: 'Theek hai, issue ka detail dobara share kijiye.',
+            })
+          } else if (/human|agent|specialist/i.test(text)) {
+            addAssistantMessage({
+              content:
+                'Main human specialist ko ping kar rahi hoon. Aapko jaldi hi call back aayega. Tab tak kya main ticket bhi raise kar du?',
+              quickReplies: [
+                {
+                  label: 'Haan, ticket bhej do',
+                  payload: 'Haan ticket bhejo',
+                },
+                {
+                  label: 'Sirf call chahiye',
+                  payload: 'Sirf call chahiye',
+                },
+              ],
+            })
+          } else {
+            addAssistantMessage({
+              content: 'Please confirm karein ya batayein kya update karna hai.',
+            })
+          }
+          break
+        }
+        default:
+          startSupportFlow()
+      }
+    },
+    [
+      addAssistantMessage,
+      resetAssistant,
+      scheduleAssistantMessages,
+      sendFlowChooser,
+      showSupportSummary,
+      startSupportFlow,
+      submitSupportTicket,
+      supportStep,
+      supportTicket,
+    ],
+  )
+
   const processUserInput = useCallback(
     (text: string) => {
       if (!text.trim()) {
@@ -1251,6 +1839,11 @@ const App = () => {
         return
       }
 
+      if (activeFlow === 'support') {
+        handleSupportInput(text)
+        return
+      }
+
       const lowered = text.toLowerCase()
 
       if (lowered.includes('onboard') || lowered.includes('register')) {
@@ -1263,6 +1856,21 @@ const App = () => {
         return
       }
 
+      if (
+        lowered.includes('support') ||
+        lowered.includes('help') ||
+        lowered.includes('issue') ||
+        lowered.includes('care')
+      ) {
+        startSupportFlow()
+        return
+      }
+
+      if (/\bdemo\b/.test(lowered)) {
+        runAudioDemo()
+        return
+      }
+
       if (lowered.includes('pack') || lowered.includes('price')) {
         const selected = deriveSelectedPackageId()
         sendPackagesOverview()
@@ -1271,16 +1879,53 @@ const App = () => {
         return
       }
 
+      const matchedFaq = matchSupportFaq(lowered)
+      if (matchedFaq) {
+        addAssistantMessage({
+          content: matchedFaq.answer,
+          quickReplies: [
+            {
+              label: 'Customer care ticket',
+              payload: 'Support ticket raise karo',
+              skipFlowHandling: true,
+              onSelect: startSupportFlow,
+              type: 'primary',
+            },
+            {
+              label: 'Packages dikhao',
+              payload: 'Packages dikhao',
+            },
+          ],
+        })
+        if (matchedFaq.followUp) {
+          scheduleAssistantMessages(
+            [
+              {
+                content: matchedFaq.followUp,
+              },
+            ],
+            600,
+          )
+        }
+        return
+      }
+
       addAssistantMessage({
         content:
-          'Main lead capture aur onboarding dono me madad kar sakti hoon. Bataiye kis se start karein?',
+          'Main customer care, sales aur onboarding sab cover karti hoon. Bataiye lead capture, support ticket ya onboarding me se kya shuru karein?',
         quickReplies: [
           {
-            label: 'Lead capture',
-            payload: 'Lead capture',
+            label: 'Sales / Packages',
+            payload: 'Lead capture shuru karo',
             skipFlowHandling: true,
             onSelect: startSalesLeadCapture,
             type: 'primary',
+          },
+          {
+            label: 'Customer support',
+            payload: 'Support chahiye',
+            skipFlowHandling: true,
+            onSelect: startSupportFlow,
           },
           {
             label: 'Onboarding help',
@@ -1288,24 +1933,35 @@ const App = () => {
             skipFlowHandling: true,
             onSelect: startOnboardingFlow,
           },
+          {
+            label: 'Audio demo',
+            payload: 'Audio demo chalao',
+            skipFlowHandling: true,
+            onSelect: runAudioDemo,
+          },
         ],
       })
     },
     [
       activeFlow,
       addAssistantMessage,
+      deriveSelectedPackageId,
+      handleIntroInput,
       handleOnboardingInput,
       handleSalesInput,
+      handleSupportInput,
+      introStep,
+      isListening,
+      matchSupportFaq,
       resetAssistant,
+      runAudioDemo,
+      scheduleAssistantMessages,
       sendFlowChooser,
       sendPackagesOverview,
       sendWidgetCard,
-      isListening,
-      deriveSelectedPackageId,
       startOnboardingFlow,
       startSalesLeadCapture,
-      handleIntroInput,
-      introStep,
+      startSupportFlow,
     ],
   )
 
@@ -1663,7 +2319,7 @@ const App = () => {
             <img className="brand-logo" src={LogoAsset} alt="Leeila AI emblem" />
             <div className="header-copy">
               <h1>Leeila AI</h1>
-              <p>Sales & Query Assistant for Sudarshan AI Labs</p>
+              <p>Customer Care & Sales Head for Sudarshan AI Labs</p>
             </div>
           </div>
           <div className="status-pill">Live demo</div>
@@ -1752,8 +2408,8 @@ const App = () => {
         </form>
 
         <footer className="chat-footer">
-          <span className="footer-title">Lead capture:</span>
-          <span>Udyam support &bull; WhatsApp automation &bull; Digital setup</span>
+          <span className="footer-title">Customer care &amp; sales:</span>
+          <span>24x7 ticket desk &bull; Lead qualification &bull; Onboarding automation</span>
         </footer>
       </div>
     </div>
