@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import './SudarshanWidget.css'
 
 export interface WidgetPackage {
@@ -50,6 +50,10 @@ const SudarshanWidget = ({
     onLeadSubmit(payload)
   }
 
+  const handlePackageChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    onPackagePick(event.target.value)
+  }
+
   const handleReset = () => {
     onLeadReset()
   }
@@ -98,7 +102,11 @@ const SudarshanWidget = ({
         <form className="sudarshan-widget__form" onSubmit={handleSubmit} onReset={handleReset}>
           <label className="sudarshan-widget__field">
             Package (optional)
-            <select name="lead.package" defaultValue={selectedPackage ?? ''}>
+            <select
+              name="lead.package"
+              value={selectedPackage ?? ''}
+              onChange={handlePackageChange}
+            >
               <option value="">Choose a package</option>
               {packageOptions.map((option) => (
                 <option value={option.value} key={option.value}>
