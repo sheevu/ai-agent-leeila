@@ -5,36 +5,36 @@
 }
 
 :root {
-  font-family: 'Poppins', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue',
-    Arial, sans-serif;
+  font-family: 'Manrope', 'Poppins', 'Segoe UI', -apple-system, BlinkMacSystemFont,
+    'Helvetica Neue', Arial, sans-serif;
   line-height: 1.6;
   font-weight: 400;
-  color: #241b2f;
-  background-color: #fff4ec;
+  color: #e7f7ff;
+  background-color: #020b16;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --gradient-bg: radial-gradient(circle at 18% 20%, rgba(255, 163, 77, 0.35) 0, transparent 52%),
-    radial-gradient(circle at 88% 10%, rgba(255, 94, 247, 0.32) 0, transparent 55%),
-    radial-gradient(circle at 50% 90%, rgba(0, 200, 150, 0.28) 0, transparent 58%), #fff4ec;
-  --surface: rgba(255, 253, 248, 0.95);
-  --surface-strong: rgba(255, 222, 244, 0.9);
-  --border-soft: rgba(255, 138, 76, 0.25);
-  --shadow-soft: 0 22px 68px rgba(255, 92, 0, 0.18);
-  --text-primary: #241b2f;
-  --text-muted: #6a536e;
-  --assistant-bubble: linear-gradient(140deg, rgba(255, 245, 231, 0.95), rgba(255, 228, 244, 0.9));
-  --assistant-border: rgba(255, 120, 84, 0.4);
-  --user-bubble: linear-gradient(135deg, #ff6a3d, #ff2b8a);
-  --cta-gradient: linear-gradient(120deg, #ff8c42, #ff3cac);
-  --accent-primary: #ff6a3d;
-  --accent-primary-dark: #e14609;
-  --accent-secondary: #8250ff;
-  --accent-emerald: #00c896;
-  --quick-secondary-bg: rgba(255, 122, 61, 0.16);
-  --quick-secondary-text: #ff5a2c;
+  --gradient-bg: radial-gradient(circle at 18% 18%, rgba(26, 106, 87, 0.45) 0, transparent 50%),
+    radial-gradient(circle at 82% 12%, rgba(0, 118, 163, 0.42) 0, transparent 52%),
+    radial-gradient(circle at 50% 90%, rgba(0, 223, 164, 0.2) 0, transparent 60%), #020b16;
+  --surface: rgba(11, 32, 44, 0.86);
+  --surface-strong: rgba(16, 46, 58, 0.92);
+  --border-soft: rgba(47, 230, 186, 0.22);
+  --shadow-soft: 0 32px 90px rgba(3, 10, 20, 0.7);
+  --text-primary: #f4feff;
+  --text-muted: #9fb8c6;
+  --assistant-bubble: linear-gradient(140deg, rgba(9, 40, 52, 0.92), rgba(14, 58, 74, 0.94));
+  --assistant-border: rgba(0, 210, 255, 0.24);
+  --user-bubble: linear-gradient(135deg, rgba(47, 255, 193, 0.92), rgba(0, 210, 255, 0.9));
+  --cta-gradient: linear-gradient(135deg, rgba(0, 210, 255, 0.95), rgba(47, 255, 193, 0.95));
+  --accent-primary: #00d9ff;
+  --accent-primary-dark: #00aac9;
+  --accent-secondary: #58c2ff;
+  --accent-emerald: #52ffd4;
+  --quick-secondary-bg: rgba(0, 210, 255, 0.18);
+  --quick-secondary-text: #6df6ff;
 }
 
 body {
@@ -58,6 +58,6 @@ input {
 }
 
 ::selection {
-  background: rgba(255, 106, 61, 0.35);
-  color: #27041b;
+  background: rgba(0, 210, 255, 0.3);
+  color: #04141f;
 }

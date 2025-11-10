@@ -1662,11 +1662,27 @@ const App = () => {
           <div className="brand-stack">
             <img className="brand-logo" src={LogoAsset} alt="Leeila AI emblem" />
             <div className="header-copy">
-              <h1>Leeila AI</h1>
-              <p>Sales & Query Assistant for Sudarshan AI Labs</p>
+              <h1>ChatGPT 4.1 Voice</h1>
+              <p>Voice-first copilot for Sudarshan AI Labs demos</p>
+              <div className="header-tags" role="list">
+                <span role="listitem">Realtime voice capture</span>
+                <span role="listitem">Bilingual (EN ↔ HI)</span>
+              </div>
             </div>
           </div>
-          <div className="status-pill">Live demo</div>
+          <div className="header-actions">
+            <div className="voice-visualizer" aria-hidden="true">
+              <span className={`ring ${isListening ? 'active' : ''}`} />
+              <span className={`ring delay ${isListening ? 'active' : ''}`} />
+              <span className={`core ${isListening ? 'active' : ''}`}>🎙️</span>
+            </div>
+            <div className={`status-pill ${isListening ? 'active' : ''}`}>
+              {isListening ? 'Listening live' : 'Voice ready'}
+            </div>
+            <div className={`status-chip ${autoVoiceResponses ? 'active' : ''}`}>
+              🔊 Voice replies {autoVoiceResponses ? 'on' : 'off'}
+            </div>
+          </div>
         </header>
 
         <div className="messages" role="log" aria-live="polite">
@@ -1716,16 +1732,19 @@ const App = () => {
           </div>
           <div className="composer-actions">
             {isVoiceSupported && (
-              <button
-                type="button"
-                className={`icon-button mic ${isListening ? 'active' : ''}`}
-                onClick={toggleVoiceCapture}
-                aria-pressed={isListening}
-                aria-label={isListening ? 'Stop voice capture' : 'Start voice capture'}
-                title={isListening ? 'Listening… tap to stop' : 'Speak to Leeila'}
-              >
-                🎙️
-              </button>
+              <div className={`mic-wrapper ${isListening ? 'active' : ''}`}>
+                <span className="mic-pulse" aria-hidden="true" />
+                <button
+                  type="button"
+                  className={`icon-button mic ${isListening ? 'active' : ''}`}
+                  onClick={toggleVoiceCapture}
+                  aria-pressed={isListening}
+                  aria-label={isListening ? 'Stop voice capture' : 'Start voice capture'}
+                  title={isListening ? 'Listening… tap to stop' : 'Speak to Leeila'}
+                >
+                  🎙️
+                </button>
+              </div>
             )}
             {isSpeechSupported && (
               <button
