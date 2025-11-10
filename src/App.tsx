@@ -314,6 +314,14 @@ const formatTitleCase = (value: string) =>
     .map((word) => word[0]?.toUpperCase() + word.slice(1).toLowerCase())
     .join(' ')
 
+const extractValidPhoneDigits = (value: string) => {
+  const digits = value.replace(/\D/g, '')
+  if (digits.length < 10) {
+    return null
+  }
+  return digits.slice(-10)
+}
+
 const detectLocale = (value: string): VoiceLocale =>
   /[\u0900-\u097F]/.test(value) ? 'hi-IN' : 'en-IN'
 
@@ -1212,8 +1220,8 @@ const App = () => {
       }
 
       if (introStep === 'askPhone') {
-        const digits = text.replace(/\D/g, '')
-        if (digits.length !== 10) {
+        const phoneDigits = extractValidPhoneDigits(text)
+        if (!phoneDigits) {
           scheduleAssistantMessages([
             {
               content:
@@ -1225,14 +1233,17 @@ const App = () => {
 
         const updatedProfile: UserProfile = {
           ...userProfile,
-          phone: digits,
+          phone: phoneDigits,
         }
         setUserProfile(updatedProfile)
         setIntroStep('completed')
         if (pendingFlow) {
           const flowToLaunch = pendingFlow
           setPendingFlow(null)
-          const acknowledgement = `${getFlowAcknowledgement(flowToLaunch, updatedProfile)} Shukriya! Contact (${digits}) note kar liya hai.`
+          const acknowledgement = `${getFlowAcknowledgement(
+            flowToLaunch,
+            updatedProfile,
+          )} Shukriya! Contact (${phoneDigits}) note kar liya hai.`
           addAssistantMessage({
             content: acknowledgement,
           })
@@ -1283,8 +1294,8 @@ const App = () => {
   const handleWidgetLeadSubmit = useCallback(
     (payload: Record<string, string>) => {
       const chosenPackageId = payload['lead.package'] || deriveSelectedPackageId()
-      const digits = (payload['lead.phone'] ?? '').replace(/\D/g, '')
-      if (digits.length !== 10) {
+      const phoneDigits = extractValidPhoneDigits(payload['lead.phone'] ?? '')
+      if (!phoneDigits) {
         addAssistantMessage({
           content:
             'Contact number sirf 10 digits ka hona chahiye. Kripya sirf numbers mein dobara bhejein.',
@@ -1302,7 +1313,7 @@ const App = () => {
       const lead: SalesLead = {
         packageInterest,
         name: formatTitleCase(payload['lead.name'] ?? ''),
-        phone: digits,
+        phone: phoneDigits,
         businessType: formatTitleCase(payload['lead.businessType'] ?? ''),
         city: formatTitleCase(payload['lead.city'] ?? ''),
       }
@@ -1391,8 +1402,8 @@ const App = () => {
           break
         }
         case 'askPhone': {
-          const digits = text.replace(/\D/g, '')
-          if (digits.length !== 10) {
+          const phoneDigits = extractValidPhoneDigits(text)
+          if (!phoneDigits) {
             addAssistantMessage({
               content:
                 'Contact number sirf 10 digits ka hona chahiye. Kripya dobara try karein.',
@@ -1401,7 +1412,7 @@ const App = () => {
           }
           const updatedLead: SalesLead = {
             ...salesLead,
-            phone: digits,
+            phone: phoneDigits,
           }
           setSalesLead(updatedLead)
           setSalesStep('askBusinessType')
@@ -1523,14 +1534,14 @@ const App = () => {
           break
         }
         case 'askContact': {
-          const digits = text.replace(/\D/g, '')
-          if (digits.length !== 10) {
+          const phoneDigits = extractValidPhoneDigits(text)
+          if (!phoneDigits) {
             addAssistantMessage({
               content: 'Valid 10 digit mobile number share kijiye (sirf 10 digits).',
             })
             return
           }
-          const updated: OnboardingData = { ...onboardingData, phone: digits }
+          const updated: OnboardingData = { ...onboardingData, phone: phoneDigits }
           setOnboardingData(updated)
           setOnboardingStep('askLocationCity')
           addAssistantMessage({
