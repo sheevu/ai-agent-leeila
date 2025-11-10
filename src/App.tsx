@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
 import LogoAsset from './assets/leeila-logo.svg'
@@ -159,6 +159,40 @@ const packages: PackageOffer[] = [
 const stripPrefixIcon = (value: string) =>
   value.replace(/^[^\w\u0900-\u097F]+/, '').trim()
 
+const planTags: Record<string, string> = {
+  'tech-swaraj': 'Launch support',
+  'kick-start': 'Best seller',
+  'vyapari-udaan': 'Growth boost',
+  'social-booster': 'Retention',
+  'digital-dominator': 'Expansion',
+  'growth-pro': 'AI ready',
+  'tez-raftar': 'Automation',
+}
+
+const insightMetrics = [
+  {
+    label: 'Avg. go-live',
+    value: '48 hrs',
+    helper: 'Launch your storefront within two working days.',
+  },
+  {
+    label: 'Voice concierge',
+    value: '24/7',
+    helper: 'Bilingual AI + human team for onboarding and support.',
+  },
+  {
+    label: 'Success score',
+    value: '94%',
+    helper: 'Merchants reporting growth inside 60 days of launch.',
+  },
+]
+
+const assuranceBadges = [
+  'Dedicated launch manager',
+  'Compliance & paperwork done-for-you',
+  'AI-powered campaign playbooks',
+]
+
 const toWidgetPackage = (offer: PackageOffer): WidgetPackage => ({
   id: offer.id,
   title: stripPrefixIcon(offer.label),
@@ -283,6 +317,13 @@ const App = () => {
   const [isListening, setIsListening] = useState(false)
   const [autoVoiceResponses, setAutoVoiceResponses] = useState(false)
   const [voiceTranscript, setVoiceTranscript] = useState('')
+
+  const planSpotlights = useMemo(() => packages.slice(0, 3), [])
+  const retainerPlans = useMemo(() => packages.filter((offer) => offer.billing), [])
+  const boosterPlans = useMemo(
+    () => packages.filter((offer) => !offer.billing).slice(3, 6),
+    [],
+  )
 
   const messageQueueRef = useRef<number[]>([])
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
@@ -1335,6 +1376,28 @@ const App = () => {
     [isListening, processUserInput],
   )
 
+  const handlePlanCardClick = useCallback(
+    (offer: PackageOffer) => {
+      const cleanLabel = stripPrefixIcon(offer.label)
+      setSalesLead((prev) => ({ ...prev, packageInterest: offer.label }))
+      sendUserMessage(`Mujhe ${cleanLabel} plan ke details chahiye.`, {
+        skipFlowHandling: true,
+      })
+      sendPackagesOverview()
+      sendWidgetCard(offer.id)
+      sendFlowChooser()
+    },
+    [sendFlowChooser, sendPackagesOverview, sendUserMessage, sendWidgetCard],
+  )
+
+  const handleContactRequest = useCallback(() => {
+    sendUserMessage('Mujhe expert se baat karni hai.')
+  }, [sendUserMessage])
+
+  const handleWidgetPreview = useCallback(() => {
+    sendWidgetCard(deriveSelectedPackageId())
+  }, [deriveSelectedPackageId, sendWidgetCard])
+
   const submitVoiceTranscript = useCallback(
     (transcript: string) => {
       const clean = transcript.trim()
@@ -1657,123 +1720,260 @@ const App = () => {
 
   return (
     <div className="app-shell">
-      <div className="chat-shell">
-        <header className="chat-header">
-          <div className="brand-stack">
-            <img className="brand-logo" src={LogoAsset} alt="Leeila AI emblem" />
-            <div className="header-copy">
-              <h1>ChatGPT 4.1 Voice</h1>
-              <p>Voice-first copilot for Sudarshan AI Labs demos</p>
-              <div className="header-tags" role="list">
-                <span role="listitem">Realtime voice capture</span>
-                <span role="listitem">Bilingual (EN ↔ HI)</span>
+      <div className="surface-grid">
+        <section className="chat-shell">
+          <header className="chat-header">
+            <div className="brand-stack">
+              <img className="brand-logo" src={LogoAsset} alt="Leeila AI emblem" />
+              <div className="header-copy">
+                <p className="header-eyebrow">Sudarshan AI Labs</p>
+                <h1>Leeila Voice Concierge</h1>
+                <p className="header-subtitle">
+                  Bilingual growth assistant for MSMEs—voice + chat workflows with human handoff.
+                </p>
+                <div className="header-tags" role="list">
+                  <span role="listitem">Voice &amp; WhatsApp orchestration</span>
+                  <span role="listitem">Lead + onboarding flows</span>
+                  <span role="listitem">Hindi • English</span>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="header-actions">
-            <div className="voice-visualizer" aria-hidden="true">
-              <span className={`ring ${isListening ? 'active' : ''}`} />
-              <span className={`ring delay ${isListening ? 'active' : ''}`} />
-              <span className={`core ${isListening ? 'active' : ''}`}>🎙️</span>
+            <div className="header-actions">
+              <div className="voice-visualizer" aria-hidden="true">
+                <span className={`ring ${isListening ? 'active' : ''}`} />
+                <span className={`ring delay ${isListening ? 'active' : ''}`} />
+                <span className={`core ${isListening ? 'active' : ''}`}>🎙️</span>
+              </div>
+              <div className="status-cluster">
+                <div className={`status-pill ${isListening ? 'active' : ''}`}>
+                  {isListening ? 'Listening live' : 'Voice ready'}
+                </div>
+                <div className={`status-chip ${autoVoiceResponses ? 'active' : ''}`}>
+                  🔊 Voice replies {autoVoiceResponses ? 'on' : 'off'}
+                </div>
+              </div>
+              <button type="button" className="header-cta" onClick={handleContactRequest}>
+                Talk to team
+              </button>
             </div>
-            <div className={`status-pill ${isListening ? 'active' : ''}`}>
-              {isListening ? 'Listening live' : 'Voice ready'}
-            </div>
-            <div className={`status-chip ${autoVoiceResponses ? 'active' : ''}`}>
-              🔊 Voice replies {autoVoiceResponses ? 'on' : 'off'}
-            </div>
-          </div>
-        </header>
+          </header>
 
-        <div className="messages" role="log" aria-live="polite">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`message ${message.sender}`}
-              data-variant={message.variant ?? 'text'}
-            >
-              <div className="message-bubble">{renderMessageContent(message)}</div>
-              {message.quickReplies && message.quickReplies.length > 0 && (
-                <div className="quick-replies">
-                  {message.quickReplies.map((reply) => (
-                    <button
-                      key={reply.label}
-                      className={`quick-reply ${reply.type ?? 'secondary'}`}
-                      type="button"
-                      onClick={() => handleQuickReply(reply)}
-                      disabled={isSendingLead && reply.type === 'primary'}
-                    >
-                      {reply.label}
-                    </button>
-                  ))}
+          <div className="messages" role="log" aria-live="polite">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`message ${message.sender}`}
+                data-variant={message.variant ?? 'text'}
+              >
+                <div className="message-bubble">{renderMessageContent(message)}</div>
+                {message.quickReplies && message.quickReplies.length > 0 && (
+                  <div className="quick-replies">
+                    {message.quickReplies.map((reply) => (
+                      <button
+                        key={reply.label}
+                        className={`quick-reply ${reply.type ?? 'secondary'}`}
+                        type="button"
+                        onClick={() => handleQuickReply(reply)}
+                        disabled={isSendingLead && reply.type === 'primary'}
+                      >
+                        {reply.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form className="composer" onSubmit={handleSubmit}>
+            <div className="input-stack">
+              <input
+                type="text"
+                className={`text-input ${isListening ? 'listening' : ''}`}
+                value={inputValue}
+                onChange={(event) => setInputValue(event.target.value)}
+                placeholder="Type here... e.g., 'Mujhe onboarding chahiye'"
+                aria-label="Send a message to Leeila AI"
+              />
+              {voiceTranscript && (
+                <div className="voice-preview" role="status" aria-live="polite">
+                  <span className="voice-indicator">🎙️</span>
+                  <span>{voiceTranscript}</span>
                 </div>
               )}
             </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <form className="composer" onSubmit={handleSubmit}>
-          <div className="input-stack">
-            <input
-              type="text"
-              className={`text-input ${isListening ? 'listening' : ''}`}
-              value={inputValue}
-              onChange={(event) => setInputValue(event.target.value)}
-              placeholder="Type here... e.g., 'Mujhe onboarding chahiye'"
-              aria-label="Send a message to Leeila AI"
-            />
-            {voiceTranscript && (
-              <div className="voice-preview" role="status" aria-live="polite">
-                <span className="voice-indicator">🎙️</span>
-                <span>{voiceTranscript}</span>
-              </div>
-            )}
-          </div>
-          <div className="composer-actions">
-            {isVoiceSupported && (
-              <div className={`mic-wrapper ${isListening ? 'active' : ''}`}>
-                <span className="mic-pulse" aria-hidden="true" />
+            <div className="composer-actions">
+              {isVoiceSupported && (
+                <div className={`mic-wrapper ${isListening ? 'active' : ''}`}>
+                  <span className="mic-pulse" aria-hidden="true" />
+                  <button
+                    type="button"
+                    className={`icon-button mic ${isListening ? 'active' : ''}`}
+                    onClick={toggleVoiceCapture}
+                    aria-pressed={isListening}
+                    aria-label={isListening ? 'Stop voice capture' : 'Start voice capture'}
+                    title={isListening ? 'Listening… tap to stop' : 'Speak to Leeila'}
+                  >
+                    🎙️
+                  </button>
+                </div>
+              )}
+              {isSpeechSupported && (
                 <button
                   type="button"
-                  className={`icon-button mic ${isListening ? 'active' : ''}`}
-                  onClick={toggleVoiceCapture}
-                  aria-pressed={isListening}
-                  aria-label={isListening ? 'Stop voice capture' : 'Start voice capture'}
-                  title={isListening ? 'Listening… tap to stop' : 'Speak to Leeila'}
+                  className={`icon-button speaker ${autoVoiceResponses ? 'active' : ''}`}
+                  onClick={toggleVoiceResponses}
+                  aria-pressed={autoVoiceResponses}
+                  aria-label={
+                    autoVoiceResponses
+                      ? 'Disable assistant voice responses'
+                      : 'Enable assistant voice responses'
+                  }
+                  title={
+                    autoVoiceResponses ? 'Mute spoken responses' : 'Hear Leeila speak responses'
+                  }
                 >
-                  🎙️
+                  🔊
                 </button>
-              </div>
-            )}
-            {isSpeechSupported && (
-              <button
-                type="button"
-                className={`icon-button speaker ${autoVoiceResponses ? 'active' : ''}`}
-                onClick={toggleVoiceResponses}
-                aria-pressed={autoVoiceResponses}
-                aria-label={
-                  autoVoiceResponses
-                    ? 'Disable assistant voice responses'
-                    : 'Enable assistant voice responses'
-                }
-                title={
-                  autoVoiceResponses ? 'Mute spoken responses' : 'Hear Leeila speak responses'
-                }
-              >
-                🔊
+              )}
+              <button type="submit" className="send-button">
+                Send
               </button>
-            )}
-            <button type="submit" className="send-button">
-              Send
-            </button>
-          </div>
-        </form>
+            </div>
+          </form>
 
-        <footer className="chat-footer">
-          <span className="footer-title">Lead capture:</span>
-          <span>Udyam support &bull; WhatsApp automation &bull; Digital setup</span>
-        </footer>
+          <footer className="chat-footer">
+            <span className="footer-title">Lead capture:</span>
+            <span>Udyam support &bull; WhatsApp automation &bull; Digital setup</span>
+          </footer>
+        </section>
+
+        <aside className="intel-panel">
+          <section className="panel-hero">
+            <p className="panel-eyebrow">Plans &amp; offers</p>
+            <h2>Build once, grow forever</h2>
+            <p>
+              Combine AI-led automations with a human launch squad. Choose a bundle or let us
+              customise one for your business goals.
+            </p>
+            <div className="panel-cta">
+              <button type="button" className="panel-button primary" onClick={handleContactRequest}>
+                Talk to an expert
+              </button>
+              <button type="button" className="panel-button ghost" onClick={handleWidgetPreview}>
+                Compare packs
+              </button>
+            </div>
+          </section>
+
+          <section className="plan-section">
+            <div className="section-head">
+              <h3>Starter favourites</h3>
+              <p>Launch-ready bundles tailored for new digital storefronts.</p>
+            </div>
+            <div className="plan-grid">
+              {planSpotlights.map((offer) => (
+                <article key={offer.id} className="plan-card">
+                  <div className="plan-card__meta">
+                    <span className="plan-card__tag">{planTags[offer.id] ?? 'Featured'}</span>
+                    <h4>{offer.label}</h4>
+                    <p>{offer.description}</p>
+                  </div>
+                  <div className="plan-card__footer">
+                    <div className="plan-card__pricing">
+                      <span className="plan-card__price">{offer.price}</span>
+                      {offer.billing && (
+                        <span className="plan-card__billing">{offer.billing}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="plan-card__action"
+                      onClick={() => handlePlanCardClick(offer)}
+                    >
+                      Discuss plan
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="plan-section">
+            <div className="section-head">
+              <h3>Retainer programs</h3>
+              <p>Stay in growth mode with monthly AI + marketing squads.</p>
+            </div>
+            <div className="plan-grid compact">
+              {retainerPlans.map((offer) => (
+                <article key={offer.id} className="plan-card plan-card--compact">
+                  <div className="plan-card__meta">
+                    <h4>{offer.label}</h4>
+                    <p>{offer.description}</p>
+                  </div>
+                  <div className="plan-card__footer">
+                    <div className="plan-card__pricing">
+                      <span className="plan-card__price">{offer.price}</span>
+                      {offer.billing && (
+                        <span className="plan-card__billing">{offer.billing}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="plan-card__action secondary"
+                      onClick={() => handlePlanCardClick(offer)}
+                    >
+                      Book a call
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="addon-section">
+            <div className="section-head">
+              <h3>Boosters &amp; add-ons</h3>
+              <p>Stack upgrades on any plan whenever you need extra lift.</p>
+            </div>
+            <div className="addon-list">
+              {boosterPlans.map((offer) => (
+                <button
+                  type="button"
+                  key={offer.id}
+                  className="addon-chip"
+                  onClick={() => handlePlanCardClick(offer)}
+                >
+                  <span className="addon-name">{offer.label}</span>
+                  <span className="addon-price">{offer.price}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="insight-section">
+            <div className="section-head">
+              <h3>Why merchants trust us</h3>
+            </div>
+            <div className="insight-grid">
+              {insightMetrics.map((metric) => (
+                <article key={metric.label} className="insight-card">
+                  <span className="insight-value">{metric.value}</span>
+                  <span className="insight-label">{metric.label}</span>
+                  <p>{metric.helper}</p>
+                </article>
+              ))}
+            </div>
+            <div className="badge-list">
+              {assuranceBadges.map((badge) => (
+                <span key={badge} className="assurance-badge">
+                  {badge}
+                </span>
+              ))}
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   )
