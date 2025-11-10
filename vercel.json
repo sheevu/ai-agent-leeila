@@ -1,0 +1,6 @@
+{
+  "framework": "vite",
+  "installCommand": "if [ -f package.json ]; then npm install; elif [ -f ../package.json ]; then (cd .. && npm install); else echo 'package.json not found' && exit 1; fi",
+  "buildCommand": "if [ -f package.json ]; then npm run build; elif [ -f ../package.json ]; then (cd .. && npm run build && rm -rf frontend/dist && cp -R dist frontend/dist); else echo 'build skipped: package.json not found' && exit 1; fi",
+  "outputDirectory": "dist"
+}
