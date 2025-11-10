@@ -5,51 +5,33 @@
 }
 
 :root {
-  font-family: 'Poppins', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue',
-    Arial, sans-serif;
+  font-family: 'Manrope', 'Poppins', 'Segoe UI', -apple-system, BlinkMacSystemFont,
+    'Helvetica Neue', Arial, sans-serif;
   line-height: 1.6;
   font-weight: 400;
-  color: #241b2f;
-  background-color: #fff4ec;
+  color: #eafff7;
+  background-color: #020c0c;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  --gradient-bg: radial-gradient(circle at 18% 20%, rgba(255, 163, 77, 0.35) 0, transparent 52%),
-    radial-gradient(circle at 88% 10%, rgba(255, 94, 247, 0.32) 0, transparent 55%),
-    radial-gradient(circle at 50% 90%, rgba(0, 200, 150, 0.28) 0, transparent 58%), #fff4ec;
-  --surface: rgba(255, 253, 248, 0.95);
-  --surface-strong: rgba(255, 222, 244, 0.9);
-  --border-soft: rgba(255, 138, 76, 0.25);
-  --shadow-soft: 0 22px 68px rgba(255, 92, 0, 0.18);
-  --text-primary: #241b2f;
-  --text-muted: #6a536e;
-  --assistant-bubble: linear-gradient(140deg, rgba(255, 245, 231, 0.95), rgba(255, 228, 244, 0.9));
-  --assistant-border: rgba(255, 120, 84, 0.4);
-  --user-bubble: linear-gradient(135deg, #ff6a3d, #ff2b8a);
-  --cta-gradient: linear-gradient(120deg, #ff8c42, #ff3cac);
-  --accent-primary: #ff6a3d;
-  --accent-primary-dark: #e14609;
-  --accent-secondary: #8250ff;
-  --accent-emerald: #00c896;
-  --quick-secondary-bg: rgba(255, 122, 61, 0.16);
-  --quick-secondary-text: #ff5a2c;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--gradient-bg);
+  background: radial-gradient(circle at 10% 20%, rgba(70, 140, 110, 0.18) 0%, transparent 55%),
+    radial-gradient(circle at 90% 0%, rgba(0, 104, 224, 0.22) 0%, transparent 60%), #020c0c;
 }
 
 #root {
   min-height: 100vh;
-  color: var(--text-primary);
+  color: inherit;
 }
 
 a {
   color: inherit;
+  text-decoration: none;
 }
 
 button,
@@ -58,6 +40,6 @@ input {
 }
 
 ::selection {
-  background: rgba(255, 106, 61, 0.35);
-  color: #27041b;
+  background: rgba(109, 255, 185, 0.4);
+  color: #021513;
 }

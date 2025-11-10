@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import './App.css'
 import LogoAsset from './assets/leeila-logo.svg'
 import SudarshanWidget from './components/SudarshanWidget'
@@ -1655,107 +1655,195 @@ const App = () => {
     )
   }
 
+  const voiceLocaleLabel = voiceLocale === 'hi-IN' ? 'Hindi (भारत)' : 'English (India)'
+  const voiceStatusText = isListening ? 'Listening in real-time' : 'Tap to start voice capture'
+  const voiceDisplayText =
+    voiceTranscript ||
+    (isListening
+      ? 'Listening... bolo aur main turant samjhoongi.'
+      : 'Hello there! I am ChatGPT 4.1 with voice. Tap the mic and speak your request.')
+  const assistantVoiceLabel = autoVoiceResponses
+    ? 'Assistant voice replies ON'
+    : 'Assistant voice replies OFF'
+
   return (
-    <div className="app-shell">
-      <div className="chat-shell">
-        <header className="chat-header">
-          <div className="brand-stack">
-            <img className="brand-logo" src={LogoAsset} alt="Leeila AI emblem" />
-            <div className="header-copy">
-              <h1>Leeila AI</h1>
-              <p>Sales & Query Assistant for Sudarshan AI Labs</p>
-            </div>
-          </div>
-          <div className="status-pill">Live demo</div>
-        </header>
-
-        <div className="messages" role="log" aria-live="polite">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`message ${message.sender}`}
-              data-variant={message.variant ?? 'text'}
-            >
-              <div className="message-bubble">{renderMessageContent(message)}</div>
-              {message.quickReplies && message.quickReplies.length > 0 && (
-                <div className="quick-replies">
-                  {message.quickReplies.map((reply) => (
-                    <button
-                      key={reply.label}
-                      className={`quick-reply ${reply.type ?? 'secondary'}`}
-                      type="button"
-                      onClick={() => handleQuickReply(reply)}
-                      disabled={isSendingLead && reply.type === 'primary'}
-                    >
-                      {reply.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <form className="composer" onSubmit={handleSubmit}>
-          <div className="input-stack">
-            <input
-              type="text"
-              className={`text-input ${isListening ? 'listening' : ''}`}
-              value={inputValue}
-              onChange={(event) => setInputValue(event.target.value)}
-              placeholder="Type here... e.g., 'Mujhe onboarding chahiye'"
-              aria-label="Send a message to Leeila AI"
-            />
-            {voiceTranscript && (
-              <div className="voice-preview" role="status" aria-live="polite">
-                <span className="voice-indicator">🎙️</span>
-                <span>{voiceTranscript}</span>
+    <div className="experience-shell">
+      <div className="aurora-layer aurora-one" />
+      <div className="aurora-layer aurora-two" />
+      <main className="app-layout">
+        <aside className="voice-suite">
+          <header className="suite-header">
+            <div className="suite-brand">
+              <img className="suite-logo" src={LogoAsset} alt="Leeila AI emblem" />
+              <div className="suite-copy">
+                <span className="suite-tag">ChatGPT 4.1 Voice</span>
+                <h1>Leeila Voice Studio</h1>
+                <p>Talk to Sudarshan AI Labs assistant in realtime voice.</p>
               </div>
-            )}
-          </div>
-          <div className="composer-actions">
+            </div>
+            <span className={`suite-status ${isListening ? 'online' : ''}`}>
+              {isListening ? 'Live' : 'Ready'}
+            </span>
+          </header>
+
+          <section className={`voice-card ${isListening ? 'is-listening' : ''}`}>
+            <div className="voice-visual" aria-hidden="true">
+              {Array.from({ length: 12 }).map((_, index) => (
+                <span key={index} style={{ '--bar-index': index } as CSSProperties} />
+              ))}
+            </div>
+            <div className="voice-script">
+              <div className="voice-meta">
+                <span className="voice-status">{voiceStatusText}</span>
+                <span className="voice-locale">{voiceLocaleLabel}</span>
+              </div>
+              <p className="voice-text">{voiceDisplayText}</p>
+              <div className="voice-footnote">
+                <span>
+                  {lastUserLocale === 'hi-IN'
+                    ? 'Recent conversation in Hindi'
+                    : 'Recent conversation in English'}
+                </span>
+                {isVoiceSupported ? (
+                  <span className="voice-indicator-chip">🎙️ Voice ready</span>
+                ) : (
+                  <span className="voice-indicator-chip disabled">🎙️ Voice unavailable</span>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="voice-controls">
             {isVoiceSupported && (
               <button
                 type="button"
-                className={`icon-button mic ${isListening ? 'active' : ''}`}
+                className={`voice-mic ${isListening ? 'active' : ''}`}
                 onClick={toggleVoiceCapture}
                 aria-pressed={isListening}
                 aria-label={isListening ? 'Stop voice capture' : 'Start voice capture'}
                 title={isListening ? 'Listening… tap to stop' : 'Speak to Leeila'}
               >
-                🎙️
+                <span className="voice-mic-icon">🎤</span>
+                <span className="voice-mic-copy">{isListening ? 'Stop' : 'Start talking'}</span>
               </button>
             )}
-            {isSpeechSupported && (
-              <button
-                type="button"
-                className={`icon-button speaker ${autoVoiceResponses ? 'active' : ''}`}
-                onClick={toggleVoiceResponses}
-                aria-pressed={autoVoiceResponses}
-                aria-label={
-                  autoVoiceResponses
-                    ? 'Disable assistant voice responses'
-                    : 'Enable assistant voice responses'
-                }
-                title={
-                  autoVoiceResponses ? 'Mute spoken responses' : 'Hear Leeila speak responses'
-                }
-              >
-                🔊
-              </button>
+            {!isVoiceSupported && (
+              <div className="voice-warning" role="alert">
+                Voice input not supported in this browser. Try Chrome desktop.
+              </div>
             )}
-            <button type="submit" className="send-button">
-              Send
-            </button>
-          </div>
-        </form>
 
-        <footer className="chat-footer">
-          <span className="footer-title">Lead capture:</span>
-          <span>Udyam support &bull; WhatsApp automation &bull; Digital setup</span>
-        </footer>
-      </div>
+            <div className="voice-secondary">
+              {isSpeechSupported && (
+                <button
+                  type="button"
+                  className={`voice-toggle ${autoVoiceResponses ? 'active' : ''}`}
+                  onClick={toggleVoiceResponses}
+                  aria-pressed={autoVoiceResponses}
+                  aria-label={
+                    autoVoiceResponses
+                      ? 'Disable assistant voice responses'
+                      : 'Enable assistant voice responses'
+                  }
+                >
+                  <span className="voice-toggle-icon">🔊</span>
+                  <span>{assistantVoiceLabel}</span>
+                </button>
+              )}
+              <div className="voice-locale-switch">
+                <span>Preferred language</span>
+                <div className="voice-locale-buttons" role="group" aria-label="Select voice language">
+                  <button
+                    type="button"
+                    className={`locale-button ${voiceLocale === 'en-IN' ? 'active' : ''}`}
+                    onClick={() => setVoiceLocale('en-IN')}
+                  >
+                    English
+                  </button>
+                  <button
+                    type="button"
+                    className={`locale-button ${voiceLocale === 'hi-IN' ? 'active' : ''}`}
+                    onClick={() => setVoiceLocale('hi-IN')}
+                  >
+                    हिंदी
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </aside>
+
+        <section className="conversation-panel">
+          <header className="conversation-header">
+            <div>
+              <h2>Conversation timeline</h2>
+              <p>Track every exchange with Leeila AI while you speak hands-free.</p>
+            </div>
+            <span className="conversation-badge">Live beta</span>
+          </header>
+
+          <div className="messages" role="log" aria-live="polite">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`message ${message.sender}`}
+                data-variant={message.variant ?? 'text'}
+              >
+                <div className="message-bubble">{renderMessageContent(message)}</div>
+                {message.quickReplies && message.quickReplies.length > 0 && (
+                  <div className="quick-replies">
+                    {message.quickReplies.map((reply) => (
+                      <button
+                        key={reply.label}
+                        className={`quick-reply ${reply.type ?? 'secondary'}`}
+                        type="button"
+                        onClick={() => handleQuickReply(reply)}
+                        disabled={isSendingLead && reply.type === 'primary'}
+                      >
+                        {reply.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form className="composer" onSubmit={handleSubmit}>
+            <div className="input-stack">
+              <label htmlFor="message-input" className="sr-only">
+                Send a message to Leeila AI
+              </label>
+              <input
+                id="message-input"
+                type="text"
+                className={`text-input ${isListening ? 'listening' : ''}`}
+                value={inputValue}
+                onChange={(event) => setInputValue(event.target.value)}
+                placeholder="Type here... e.g., 'Mujhe onboarding chahiye'"
+                aria-label="Send a message to Leeila AI"
+              />
+              {voiceTranscript && (
+                <div className="voice-preview" role="status" aria-live="polite">
+                  <span className="voice-indicator">🎙️</span>
+                  <span>{voiceTranscript}</span>
+                </div>
+              )}
+            </div>
+            <div className="composer-actions">
+              <button type="submit" className="send-button">
+                Send
+              </button>
+            </div>
+          </form>
+
+          <footer className="conversation-footer">
+            <span className="footer-title">Lead capture:</span>
+            <span>Udyam support • WhatsApp automation • Digital setup</span>
+          </footer>
+        </section>
+      </main>
     </div>
   )
 }
